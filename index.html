@@ -257,6 +257,20 @@
             margin-bottom: 20px;
             border: 1px solid #f5c6cb;
         }
+
+        .debug-info {
+            background: #f0f0f0;
+            border: 1px solid #ccc;
+            padding: 10px;
+            margin-top: 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            color: #666;
+            text-align: left;
+            max-height: 150px;
+            overflow-y: auto;
+            font-family: monospace;
+        }
     </style>
 </head>
 <body>
@@ -281,10 +295,12 @@
                         inputmode="numeric"
                         pattern="[0-9]{8}"
                         required
+                        autocomplete="off"
                     >
                 </div>
 
                 <div class="message" id="verificationMessage"></div>
+                <div class="debug-info" id="debugInfo" style="display:none;"></div>
 
                 <div class="button-group">
                     <button type="submit" class="btn-verify" id="verifyBtn">
@@ -341,11 +357,19 @@
     </div>
 
     <script>
-        // Replace this with your Google Apps Script deployment URL
+        // ===== IMPORTANT: UPDATE THIS WITH YOUR APPS SCRIPT DEPLOYMENT URL =====
         const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyiV4P3eh2s6wBvtZ_UBrJGClYmY2-A5Pupxa7T3DtvBDX6Pw2MOvtEar9d0glqmD-G/exec";
+        // Example: https://script.google.com/macros/d/AKfycbw1234567890/usercontent
         
         let verifiedITS = null;
         let verifiedHOF = null;
+        
+        function showDebug(message) {
+            const debugDiv = document.getElementById("debugInfo");
+            debugDiv.style.display = "block";
+            debugDiv.innerHTML += message + "<br>";
+            console.log("[DEBUG]", message);
+        }
         
         async function verifyID(event) {
             event.preventDefault();
@@ -353,6 +377,12 @@
             const idInput = document.getElementById("idInput").value.trim();
             const messageDiv = document.getElementById("verificationMessage");
             const verifyBtn = document.getElementById("verifyBtn");
+            const debugDiv = document.getElementById("debugInfo");
+            
+            // Clear previous debug info
+            debugDiv.innerHTML = "";
+            
+            showDebug("Starting verification for ID: " + idInput);
             
             // Validate input
             if (idInput.length !== 8 || isNaN(idInput)) {
@@ -365,15 +395,36 @@
             showMessage(messageDiv, "loading", "<span class='spinner'></span>Verifying ID...");
             
             try {
+                showDebug("Sending request to: " + APPS_SCRIPT_URL);
+                
                 const response = await fetch(APPS_SCRIPT_URL, {
                     method: "POST",
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    },
                     body: new URLSearchParams({
                         id: idInput,
                         action: "verify"
                     })
                 });
                 
-                const data = await response.json();
+                showDebug("Response status: " + response.status);
+                showDebug("Response type: " + response.headers.get('content-type'));
+                
+                const responseText = await response.text();
+                showDebug("Raw response: " + responseText.substring(0, 100));
+                
+                let data;
+                try {
+                    data = JSON.parse(responseText);
+                } catch (e) {
+                    showDebug("Failed to parse JSON: " + e.message);
+                    showMessage(messageDiv, "error", "❌ Invalid response from server. Check deployment URL.");
+                    verifyBtn.disabled = false;
+                    return;
+                }
+                
+                showDebug("Parsed data: " + JSON.stringify(data));
                 
                 if (!data.found) {
                     showMessage(messageDiv, "error", "❌ ITS ID not found in database. Please check and try again.");
@@ -387,6 +438,7 @@
                     verifiedITS = idInput;
                     verifiedHOF = data.hofGroup;
                     showMessage(messageDiv, "success", "✅ ID verified successfully!");
+                    showDebug("Verification successful! HOF: " + data.hofGroup);
                     setTimeout(() => {
                         document.getElementById("verificationSection").classList.add("hidden");
                         document.getElementById("blockedSection").classList.add("hidden");
@@ -396,6 +448,7 @@
                 } else {
                     // Group member already submitted - show blocked message
                     showMessage(messageDiv, "warning", "⚠️ " + data.message);
+                    showDebug("Group already submitted: " + data.message);
                     document.getElementById("blockedDetails").innerHTML = `
                         <p><strong>Group ID (HOF):</strong> ${data.hofGroup}</p>
                         <p>Only one submission per group is allowed. Please contact your group administrator if you believe this is an error.</p>
@@ -408,6 +461,7 @@
                 }
             } catch (error) {
                 console.error("Error:", error);
+                showDebug("Fetch error: " + error.message);
                 showMessage(messageDiv, "error", `❌ Error verifying ID: ${error.message}`);
                 verifyBtn.disabled = false;
             }
@@ -422,6 +476,8 @@
             document.getElementById("idInput").value = "";
             document.getElementById("verificationMessage").className = "message";
             document.getElementById("verificationMessage").innerHTML = "";
+            document.getElementById("debugInfo").innerHTML = "";
+            document.getElementById("debugInfo").style.display = "none";
         }
         
         function goBackToVerification() {
@@ -429,14 +485,6 @@
             document.getElementById("blockedSection").classList.add("hidden");
             document.getElementById("verificationSection").classList.remove("hidden");
             resetForm();
-        }
-
-        // After Google Form submission, record it
-        function onFormSubmissionComplete() {
-            if (verifiedITS && verifiedHOF) {
-                // This would ideally be called via a Google Form script
-                console.log("Form submitted by ITS:", verifiedITS, "HOF:", verifiedHOF);
-            }
         }
     </script>
 </body>
