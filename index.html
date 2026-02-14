@@ -278,6 +278,29 @@
             overflow-y: auto;
             font-family: monospace;
         }
+
+        .form-header-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .btn-refresh {
+            background: #6c757d;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-refresh:hover {
+            background: #5a6268;
+        }
     </style>
 </head>
 <body>
@@ -339,13 +362,18 @@
 
         <!-- Form Section -->
         <div id="formSection" class="verification-section hidden">
-            <div class="success-header">
-                <h2>✅ Verification Successful!</h2>
-                <p>Your ID has been verified and you can now access the form.</p>
-                
-                <div class="group-info" id="groupInfo">
-                    <!-- Group info will be inserted here -->
+            <div class="form-header-actions">
+                <div class="success-header" style="flex: 1; margin-bottom: 0;">
+                    <h2 style="margin-bottom: 5px;">✅ Verification Successful!</h2>
+                    <p style="margin-bottom: 0;">Your ID has been verified.</p>
                 </div>
+                <button class="btn-refresh" onclick="refreshPage()" title="Refresh to verify another ID">
+                    🔄 Refresh
+                </button>
+            </div>
+
+            <div class="group-info" id="groupInfo">
+                <!-- Group info will be inserted here -->
             </div>
 
             <div class="form-iframe">
@@ -368,7 +396,40 @@
         
         let verifiedITS = null;
         let verifiedHOF = null;
+        let isFormVerified = false;
         
+        // ========== PREVENT BACK BUTTON NAVIGATION ==========
+        window.addEventListener('pageshow', function(event) {
+            if (event.persisted) {
+                // User used back button
+                if (isFormVerified) {
+                    // If form was verified, show verification screen again
+                    resetToVerification();
+                }
+            }
+        });
+
+        window.addEventListener('pagehide', function(event) {
+            // Push a new state to prevent back navigation
+            if (isFormVerified) {
+                window.history.pushState(null, null, window.location.href);
+            }
+        });
+
+        // Push initial state
+        window.history.pushState(null, null, window.location.href);
+
+        // Handle popstate (back button)
+        window.addEventListener('popstate', function(event) {
+            if (isFormVerified) {
+                // Push state again to prevent going back
+                window.history.pushState(null, null, window.location.href);
+                // Show alert to user
+                alert('You cannot go back after verification. Please close the tab or refresh to verify a new ID.');
+            }
+        });
+
+        // ========== FORM FUNCTIONS ==========
         function showDebug(message) {
             const debugDiv = document.getElementById("debugInfo");
             debugDiv.style.display = "block";
@@ -441,8 +502,11 @@
                     // ✅ CAN SUBMIT
                     verifiedITS = idInput;
                     verifiedHOF = data.hofGroup;
+                    isFormVerified = true; // Mark as verified
+                    
                     showMessage(messageDiv, "success", "✅ ID verified successfully!\nYou can now fill the form.");
                     showDebug("Verification successful! HOF: " + data.hofGroup);
+                    
                     setTimeout(() => {
                         document.getElementById("verificationSection").classList.add("hidden");
                         document.getElementById("blockedSection").classList.add("hidden");
@@ -502,12 +566,23 @@
             document.getElementById("debugInfo").innerHTML = "";
             document.getElementById("debugInfo").style.display = "none";
         }
+
+        function resetToVerification() {
+            isFormVerified = false;
+            document.getElementById("verificationSection").classList.remove("hidden");
+            document.getElementById("blockedSection").classList.add("hidden");
+            document.getElementById("formSection").classList.add("hidden");
+            resetForm();
+        }
         
         function goBackToVerification() {
-            document.getElementById("formSection").classList.add("hidden");
-            document.getElementById("blockedSection").classList.add("hidden");
-            document.getElementById("verificationSection").classList.remove("hidden");
-            resetForm();
+            resetToVerification();
+        }
+
+        function refreshPage() {
+            // Clear verification state and reload
+            isFormVerified = false;
+            location.reload();
         }
     </script>
 </body>
