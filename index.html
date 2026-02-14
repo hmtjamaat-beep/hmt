@@ -378,12 +378,11 @@
 
             <div class="form-iframe">
                 <iframe 
-                    src="https://docs.google.com/forms/d/e/1FAIpQLSf1sUan8U1Efa2MesAU4hGU39qgCPH7M1FerLPemUQc0sxPqw/viewform?usp=header&embedded=true" 
+                    id="googleFormFrame"
                     frameborder="0" 
                     marginheight="0" 
                     marginwidth="0"
-                    title="Google Form"
-                    id="googleForm">
+                    title="Google Form">
                     Loading...
                 </iframe>
             </div>
@@ -393,6 +392,13 @@
     <script>
         // Apps Script Deployment URL
         const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwpW9mqRkvwYo0B7Ik63Dglx0WduO0QMyWSTr_K7w06QB1Xdo-63GKOeSZjGbK9p3K7/exec";
+        
+        // Google Form Base URL (change entry ID if needed - see instructions below)
+        const GOOGLE_FORM_BASE_URL = "https://docs.google.com/forms/d/e/1FAIpQLSf1sUan8U1Efa2MesAU4hGU39qgCPH7M1FerLPemUQc0sxPqw/viewform?usp=header&embedded=true";
+        
+        // Entry ID for ITS ID field in Google Form
+        // You need to update this - see instructions in comments below
+        const ITS_ID_ENTRY_ID = "1055524627"; // CHANGE THIS - see instructions
         
         let verifiedITS = null;
         let verifiedHOF = null;
@@ -512,6 +518,9 @@
                         document.getElementById("blockedSection").classList.add("hidden");
                         document.getElementById("formSection").classList.remove("hidden");
                         document.getElementById("groupInfo").innerHTML = `<strong>📍 Group (HOF):</strong> ${data.hofGroup}`;
+                        
+                        // Load Google Form with pre-filled ITS ID
+                        loadGoogleFormWithID(verifiedITS);
                     }, 1000);
                 } else {
                     // ❌ CANNOT SUBMIT - Check which reason
@@ -552,6 +561,19 @@
                 showMessage(messageDiv, "error", `❌ Error verifying ID:\n${error.message}`);
                 verifyBtn.disabled = false;
             }
+        }
+
+        // Load Google Form with pre-filled ITS ID
+        function loadGoogleFormWithID(itsID) {
+            // Construct URL with pre-filled entry
+            const formURLWithID = GOOGLE_FORM_BASE_URL + `&entry.${ITS_ID_ENTRY_ID}=${encodeURIComponent(itsID)}`;
+            
+            showDebug("Loading form with ITS ID: " + itsID);
+            showDebug("Form URL: " + formURLWithID);
+            
+            // Set the iframe source
+            const iframe = document.getElementById("googleFormFrame");
+            iframe.src = formURLWithID;
         }
         
         function showMessage(messageDiv, type, text) {
